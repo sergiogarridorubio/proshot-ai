@@ -1,46 +1,62 @@
-
 import { GoogleGenAI } from "@google/genai";
 
+// Modelo optimizado para velocidad y disponibilidad gratuita
 const MODEL_NAME = 'gemini-2.5-flash-image';
 
+/**
+ * Genera una imagen profesional usando Gemini 2.5 Flash.
+ */
 export const generateProfessionalImage = async (
   productName: string,
   base64Image: string,
   style: 'studio' | 'lifestyle' | 'usage'
 ): Promise<string> => {
-  // Inicialización siguiendo estrictamente las guías de seguridad
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   let prompt = "";
   if (style === 'studio') {
-    prompt = `Fotografía profesional de estudio del producto: ${productName}. Iluminación de alta gama, fondo minimalista limpio, enfoque extremadamente nítido en el producto, calidad comercial, 8k.`;
+    prompt = `Professional studio photography of this ${productName}. 
+    Soft professional lighting, clean minimal background, commercial photography style, high quality.`;
   } else if (style === 'lifestyle') {
-    prompt = `Fotografía de estilo de vida del producto: ${productName} en un entorno interior moderno y elegante. Iluminación natural suave, estética premium, atmósfera sofisticada.`;
+    prompt = `Lifestyle photography of this ${productName} in a realistic home or office setting. 
+    Natural lighting, cozy atmosphere, high resolution.`;
   } else {
-    prompt = `Primer plano profesional del producto: ${productName} siendo utilizado. Enfoque en los detalles y la interacción natural. Estilo editorial de alta gama.`;
+    prompt = `Action/Contextual shot of ${productName}. 
+    Realistic environment, professional depth of field, sharp details.`;
   }
 
-  const response = await ai.models.generateContent({
-    model: MODEL_NAME,
-    contents: {
-      parts: [
-        {
-          inlineData: {
-            data: base64Image.split(',')[1],
-            mimeType: 'image/png',
+  try {
+    const response = await ai.models.generateContent({
+      model: MODEL_NAME,
+      contents: {
+        parts: [
+          {
+            inlineData: {
+              data: base64Image.split(',')[1],
+              mimeType: 'image/png',
+            },
           },
-        },
-        { text: prompt },
-      ],
-    },
-  });
+          { text: prompt },
+        ],
+      },
+      config: {
+        imageConfig: {
+          aspectRatio: "1:1"
+        }
+      }
+    });
 
-  const part = response.candidates?.[0]?.content?.parts.find(p => p.inlineData);
-  if (!part?.inlineData?.data) {
-    throw new Error("No se recibieron datos de imagen de Gemini");
+    // Buscamos la parte que contiene la imagen
+    const part = response.candidates?.[0]?.content?.parts.find(p => p.inlineData);
+    if (!part?.inlineData?.data) {
+      throw new Error("No se recibió imagen de la IA");
+    }
+
+    return `data:image/png;base64,${part.inlineData.data}`;
+  } catch (error: any) {
+    console.error("Error en Gemini Service:", error);
+    throw error;
   }
-
-  return `data:image/png;base64,${part.inlineData.data}`;
 };
 
 export const editImage = async (
@@ -50,27 +66,30 @@ export const editImage = async (
 ): Promise<string> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-  const fullPrompt = `Basado en este producto (${productName}), aplica el siguiente cambio: ${editPrompt}. Mantén la calidad profesional, la iluminación y el enfoque original del producto.`;
-
-  const response = await ai.models.generateContent({
-    model: MODEL_NAME,
-    contents: {
-      parts: [
-        {
-          inlineData: {
-            data: base64Image.split(',')[1],
-            mimeType: 'image/png',
+  try {
+    const response = await ai.models.generateContent({
+      model: MODEL_NAME,
+      contents: {
+        parts: [
+          {
+            inlineData: {
+              data: base64Image.split(',')[1],
+              mimeType: 'image/png',
+            },
           },
-        },
-        { text: fullPrompt },
-      ],
-    },
-  });
+          { text: `Edit this photo of ${productName}: ${editPrompt}. Keep it professional.` },
+        ],
+      },
+      config: {
+        imageConfig: { aspectRatio: "1:1" }
+      }
+    });
 
-  const part = response.candidates?.[0]?.content?.parts.find(p => p.inlineData);
-  if (!part?.inlineData?.data) {
-    throw new Error("No se recibieron datos de imagen");
+    const part = response.candidates?.[0]?.content?.parts.find(p => p.inlineData);
+    if (!part?.inlineData?.data) throw new Error("Error en edición");
+
+    return `data:image/png;base64,${part.inlineData.data}`;
+  } catch (error: any) {
+    throw error;
   }
-
-  return `data:image/png;base64,${part.inlineData.data}`;
 };
