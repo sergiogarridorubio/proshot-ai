@@ -1,0 +1,5 @@
+{
+  "name": "ProShot AI",
+  "description": "Generador de fotografía profesional de productos que transforma fotos simples en tomas de estudio y estilo de vida usando Gemini 2.5 Flash Image.",
+  "requestFramePermissions": []
+}
