@@ -1,16 +1,13 @@
 import { GoogleGenAI } from "@google/genai";
 
-// Modelo optimizado para velocidad y disponibilidad gratuita
 const MODEL_NAME = 'gemini-2.5-flash-image';
 
-/**
- * Genera una imagen profesional usando Gemini 2.5 Flash.
- */
 export const generateProfessionalImage = async (
   productName: string,
   base64Image: string,
   style: 'studio' | 'lifestyle' | 'usage'
 ): Promise<string> => {
+  // Siempre crear la instancia justo antes de usarla
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   let prompt = "";
@@ -39,22 +36,20 @@ export const generateProfessionalImage = async (
           { text: prompt },
         ],
       },
-      config: {
-        imageConfig: {
-          aspectRatio: "1:1"
-        }
-      }
     });
 
-    // Buscamos la parte que contiene la imagen
     const part = response.candidates?.[0]?.content?.parts.find(p => p.inlineData);
     if (!part?.inlineData?.data) {
-      throw new Error("No se recibió imagen de la IA");
+      throw new Error("EMPTY_RESPONSE");
     }
 
     return `data:image/png;base64,${part.inlineData.data}`;
   } catch (error: any) {
-    console.error("Error en Gemini Service:", error);
+    console.error("Detailed Error:", error);
+    // Si es 404, es un problema de permisos del modelo con esa Key
+    if (error.message?.includes('404') || error.message?.includes('not found')) {
+      throw new Error("MODEL_NOT_FOUND");
+    }
     throw error;
   }
 };
@@ -80,16 +75,14 @@ export const editImage = async (
           { text: `Edit this photo of ${productName}: ${editPrompt}. Keep it professional.` },
         ],
       },
-      config: {
-        imageConfig: { aspectRatio: "1:1" }
-      }
     });
 
     const part = response.candidates?.[0]?.content?.parts.find(p => p.inlineData);
-    if (!part?.inlineData?.data) throw new Error("Error en edición");
+    if (!part?.inlineData?.data) throw new Error("No data in response");
 
     return `data:image/png;base64,${part.inlineData.data}`;
   } catch (error: any) {
+    if (error.message?.includes('404')) throw new Error("MODEL_NOT_FOUND");
     throw error;
   }
 };
